@@ -3,6 +3,13 @@
   padding-bottom: 100px;
 }
 
+/* Компенсируем отсутствие Breadcrumbs на время загрузки — та же
+   логика, что в CategoryPage.css и VehiclePage.css, чтобы скелетон не
+   был "приклеен" к хедеру. */
+.booking-page__loading {
+  margin-top: var(--crumbs-block-height, 76px);
+}
+
 .booking-page__layout {
   max-width: 520px;
   margin: 0 auto;
@@ -45,27 +52,21 @@
   font-size: 14px;
 }
 
-.booking-form__period {
-  display: inline-flex;
-  background: var(--bg-elevated);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-s);
-  padding: 3px;
-  width: fit-content;
+.booking-form__dates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 
-.booking-form__period button {
-  background: transparent;
-  border: none;
-  padding: 8px 18px;
+.booking-form__price-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.booking-form__price-breakdown span {
   font-size: 13px;
   color: var(--text-muted);
-  border-radius: 5px;
-}
-
-.booking-form__period button.is-active {
-  background: var(--white);
-  color: var(--on-white);
 }
 
 .booking-form__price {

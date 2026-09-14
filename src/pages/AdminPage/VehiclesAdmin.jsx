@@ -3,7 +3,7 @@ import { callAdminApi } from '../../api/admin.js'
 import SkeletonTableRows from '../../components/SkeletonTableRows/SkeletonTableRows.jsx'
 
 const EXTRA_CATEGORIES = ['Баланс', 'Скорость', 'Управление']
-const COLUMNS = 5
+const COLUMNS = 6
 
 const EMPTY = {
   id: '', category_id: '', brand: '', model: '', class: '',
@@ -11,6 +11,7 @@ const EMPTY = {
   rating: '5', rents: '0', location: '', badge: '',
   featuresText: '', imagesText: '',
   stageCount: '0', slot2: 'Баланс', slot3: 'Баланс', slot4: 'Баланс',
+  priceTiers: [],
 }
 
 export default function VehiclesAdmin() {
@@ -44,6 +45,7 @@ export default function VehiclesAdmin() {
   function startEdit(v) {
     setEditingId(v.id)
     const stages = (v.vehicle_stages || []).slice().sort((a, b) => a.position - b.position)
+    const tiers = (v.vehicle_price_tiers || []).slice().sort((a, b) => a.min_days - b.min_days)
     setForm({
       id: v.id,
       category_id: v.category_id,
@@ -65,6 +67,11 @@ export default function VehiclesAdmin() {
       slot2: stages[1]?.category || 'Баланс',
       slot3: stages[2]?.category || 'Баланс',
       slot4: stages[3]?.category || 'Баланс',
+      priceTiers: tiers.map((t) => ({
+        minDays: String(t.min_days),
+        maxDays: t.max_days == null ? '' : String(t.max_days),
+        pricePerDay: String(t.price_per_day),
+      })),
     })
   }
 
@@ -73,10 +80,24 @@ export default function VehiclesAdmin() {
     setForm(EMPTY)
   }
 
+  function addTier() {
+    setForm((f) => ({ ...f, priceTiers: [...f.priceTiers, { minDays: '', maxDays: '', pricePerDay: '' }] }))
+  }
+
+  function updateTier(i, field, value) {
+    setForm((f) => {
+      const priceTiers = f.priceTiers.slice()
+      priceTiers[i] = { ...priceTiers[i], [field]: value }
+      return { ...f, priceTiers }
+    })
+  }
+
+  function removeTier(i) {
+    setForm((f) => ({ ...f, priceTiers: f.priceTiers.filter((_, idx) => idx !== i) }))
+  }
+
   // Стейджи: 0 — стоковая; либо непрерывно 2–4 подряд, слот 1 всегда
-  // "База", слоты 2+ — любая из Баланс/Скорость/Управление, повторы
-  // разрешены. Без базы не бывает слота 2, без слота 2 — слота 3 и т.д.
-  // — это как раз и обеспечивает выбор "Количество стейджей".
+  // "База", слоты 2+ — любая из Баланс/Скорость/Управление.
   function buildStagesPayload() {
     const count = Number(form.stageCount)
     if (count === 0) return []
@@ -85,6 +106,17 @@ export default function VehiclesAdmin() {
     if (count >= 3) stages.push({ position: 3, category: form.slot3 })
     if (count >= 4) stages.push({ position: 4, category: form.slot4 })
     return stages
+  }
+
+  // Тарифы: пропускаем незаполненные строки (пустое "от" или цену).
+  function buildPriceTiersPayload() {
+    return form.priceTiers
+      .filter((t) => t.minDays !== '' && t.pricePerDay !== '')
+      .map((t) => ({
+        min_days: Number(t.minDays),
+        max_days: t.maxDays === '' ? null : Number(t.maxDays),
+        price_per_day: Number(t.pricePerDay),
+      }))
   }
 
   async function handleSubmit(e) {
@@ -119,6 +151,7 @@ export default function VehiclesAdmin() {
         await callAdminApi('vehicles', 'create', vehiclePayload)
       }
       await callAdminApi('stages', 'replaceForVehicle', { vehicleId, stages: buildStagesPayload() })
+      await callAdminApi('priceTiers', 'replaceForVehicle', { vehicleId, tiers: buildPriceTiersPayload() })
       resetForm()
       load()
     } catch (e) {
@@ -157,8 +190,8 @@ export default function VehiclesAdmin() {
         <input placeholder="Бренд" value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} required />
         <input placeholder="Модель" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} required />
         <input placeholder="Класс" value={form.class} onChange={(e) => setForm({ ...form, class: e.target.value })} />
-        <input type="number" placeholder="Цена / сутки, ₽" value={form.price_day} onChange={(e) => setForm({ ...form, price_day: e.target.value })} required />
-        <input type="number" placeholder="Цена / неделя, ₽" value={form.price_week} onChange={(e) => setForm({ ...form, price_week: e.target.value })} />
+        <input type="number" placeholder="Цена / сутки, ₽ (по умолчанию, если нет тарифов)" value={form.price_day} onChange={(e) => setForm({ ...form, price_day: e.target.value })} required />
+        <input type="number" placeholder="Цена / неделя, ₽ (устарело, необязательно)" value={form.price_week} onChange={(e) => setForm({ ...form, price_week: e.target.value })} />
         <input type="number" placeholder="Мест" value={form.seats} onChange={(e) => setForm({ ...form, seats: e.target.value })} />
         <input type="number" placeholder="Макс. скорость, км/ч" value={form.top_speed} onChange={(e) => setForm({ ...form, top_speed: e.target.value })} />
         <input type="number" step="0.1" placeholder="Разгон до 100, с" value={form.accel} onChange={(e) => setForm({ ...form, accel: e.target.value })} />
@@ -221,6 +254,41 @@ export default function VehiclesAdmin() {
           )}
         </fieldset>
 
+        <fieldset className="admin-stages admin-price-tiers">
+          <legend>Тарифы по срокам аренды (необязательно — без них всегда действует «Цена / сутки» выше)</legend>
+
+          <div className="admin-price-tiers__rows">
+            {form.priceTiers.map((t, i) => (
+              <div key={i} className="admin-price-tiers__row">
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="от, дней"
+                  value={t.minDays}
+                  onChange={(e) => updateTier(i, 'minDays', e.target.value)}
+                />
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="до, дней (пусто = без ограничения)"
+                  value={t.maxDays}
+                  onChange={(e) => updateTier(i, 'maxDays', e.target.value)}
+                />
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="₽ / сутки в этом диапазоне"
+                  value={t.pricePerDay}
+                  onChange={(e) => updateTier(i, 'pricePerDay', e.target.value)}
+                />
+                <button type="button" className="btn btn-outline" onClick={() => removeTier(i)}>×</button>
+              </div>
+            ))}
+          </div>
+
+          <button type="button" className="btn btn-outline" onClick={addTier}>+ Добавить тариф</button>
+        </fieldset>
+
         <div className="admin-form__actions">
           <button type="submit" className="btn btn-primary">{editingId ? 'Сохранить' : 'Добавить'}</button>
           {editingId && <button type="button" className="btn btn-outline" onClick={resetForm}>Отмена</button>}
@@ -235,6 +303,7 @@ export default function VehiclesAdmin() {
             <th>Машина</th>
             <th>Категория</th>
             <th>Цена/сутки</th>
+            <th>Занята</th>
             <th>Стейджи</th>
             <th></th>
           </tr>
@@ -248,6 +317,7 @@ export default function VehiclesAdmin() {
                 <td>{v.brand} {v.model}</td>
                 <td>{categories.find((c) => c.id === v.category_id)?.label || v.category_id}</td>
                 <td className="mono">{v.price_day}</td>
+                <td>{v.is_rented ? 'Да' : 'Нет'}</td>
                 <td>
                   {(v.vehicle_stages || []).length === 0
                     ? 'Стоковая'

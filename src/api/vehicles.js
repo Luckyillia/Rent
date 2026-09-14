@@ -8,6 +8,11 @@ function mapVehicle(row) {
     .sort((a, b) => a.position - b.position)
     .map((s) => s.category)
 
+  const priceTiers = (row.vehicle_price_tiers || [])
+    .slice()
+    .sort((a, b) => a.min_days - b.min_days)
+    .map((t) => ({ minDays: t.min_days, maxDays: t.max_days, pricePerDay: t.price_per_day }))
+
   return {
     id: row.id,
     category: row.category_id,
@@ -16,6 +21,8 @@ function mapVehicle(row) {
     class: row.class,
     priceDay: row.price_day,
     priceWeek: row.price_week,
+    priceTiers,
+    isRented: !!row.is_rented,
     seats: row.seats,
     topSpeed: row.top_speed,
     accel: row.accel,
@@ -29,10 +36,12 @@ function mapVehicle(row) {
   }
 }
 
+const VEHICLE_SELECT = '*, vehicle_stages(position, category), vehicle_price_tiers(min_days, max_days, price_per_day)'
+
 export async function fetchVehiclesByCategory(categoryId) {
   const { data, error } = await supabase
     .from('vehicles')
-    .select('*, vehicle_stages(position, category)')
+    .select(VEHICLE_SELECT)
     .eq('category_id', categoryId)
   if (error) throw error
   return (data || []).map(mapVehicle)
@@ -41,7 +50,7 @@ export async function fetchVehiclesByCategory(categoryId) {
 export async function fetchVehicle(id) {
   const { data, error } = await supabase
     .from('vehicles')
-    .select('*, vehicle_stages(position, category)')
+    .select(VEHICLE_SELECT)
     .eq('id', id)
     .maybeSingle()
   if (error) throw error

@@ -3,6 +3,7 @@ import { useParams, Navigate, Link } from 'react-router-dom'
 import Breadcrumbs from '../../components/Breadcrumbs/Breadcrumbs.jsx'
 import Gallery from '../../components/Gallery/Gallery.jsx'
 import StagesList from '../../components/StagesList/StagesList.jsx'
+import PriceTiers from '../../components/PriceTiers/PriceTiers.jsx'
 import SkeletonVehiclePage from '../../components/SkeletonVehiclePage/SkeletonVehiclePage.jsx'
 import { fetchVehicle } from '../../api/vehicles.js'
 import { fetchCategoryById } from '../../api/categories.js'
@@ -13,7 +14,6 @@ export default function VehiclePage() {
   const { vehicleId } = useParams()
   const [vehicle, setVehicle] = useState(null)
   const [category, setCategory] = useState(null)
-  const [period, setPeriod] = useState('day')
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
 
@@ -59,8 +59,6 @@ export default function VehiclePage() {
     )
   }
 
-  const price = period === 'day' ? vehicle.priceDay : vehicle.priceWeek
-
   return (
     <section className="container vehicle-page">
       <Breadcrumbs
@@ -85,6 +83,11 @@ export default function VehiclePage() {
           </div>
 
           <div className="vehicle-page__section">
+            <h2>Тарифы аренды</h2>
+            <PriceTiers priceDay={vehicle.priceDay} tiers={vehicle.priceTiers} />
+          </div>
+
+          <div className="vehicle-page__section">
             <h2>Установленные стейджи</h2>
             <StagesList stages={vehicle.stages} />
           </div>
@@ -100,28 +103,25 @@ export default function VehiclePage() {
             <span>сдана в аренду {vehicle.rents} раз</span>
           </div>
 
-          <div className="vehicle-page__period">
-            <button
-              type="button"
-              className={period === 'day' ? 'is-active' : ''}
-              onClick={() => setPeriod('day')}
-            >
-              Сутки
-            </button>
-            <button
-              type="button"
-              className={period === 'week' ? 'is-active' : ''}
-              onClick={() => setPeriod('week')}
-            >
-              Неделя
-            </button>
-          </div>
+          <p className="vehicle-page__price mono">
+            от {formatMoney(vehicle.priceDay)}
+            <span className="vehicle-page__price-unit"> / сутки</span>
+          </p>
 
-          <p className="vehicle-page__price mono">{formatMoney(price)}</p>
-
-          <Link to={`/book/${vehicle.id}?period=${period}`} className="btn btn-primary vehicle-page__book">
-            Забронировать
-          </Link>
+          {vehicle.isRented ? (
+            <>
+              <button type="button" className="btn btn-primary vehicle-page__book is-disabled" disabled>
+                Недоступно
+              </button>
+              <p className="vehicle-page__unavailable-note">
+                Машина сейчас в аренде у другого игрока — бронирование временно недоступно.
+              </p>
+            </>
+          ) : (
+            <Link to={`/book/${vehicle.id}`} className="btn btn-primary vehicle-page__book">
+              Забронировать
+            </Link>
+          )}
 
           <dl className="vehicle-page__specs">
             <div>

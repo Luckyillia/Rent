@@ -1,7 +1,8 @@
 // supabase/functions/admin-api/index.ts
-// Единая точка входа для всех операций админки (машины, категории, стейджи, аренды).
-// Требует валидный токен сессии в заголовке x-admin-token (выдаётся admin-login).
-// Все запросы к базе идут сервисным ключом — RLS для anon тут не участвует.
+// Единая точка входа для всех операций админки (машины, категории,
+// стейджи, тарифы по датам, аренды). Требует валидный токен сессии в
+// заголовке x-admin-token (выдаётся admin-login). Все запросы к базе
+// идут сервисным ключом — RLS для anon тут не участвует.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
@@ -55,6 +56,8 @@ serve(async (req) => {
         return json(await handleCategories(action, payload))
       case "stages":
         return json(await handleStages(action, payload))
+      case "priceTiers":
+        return json(await handlePriceTiers(action, payload))
       case "rentals":
         return json(await handleRentals(action, payload))
       default:
@@ -70,7 +73,7 @@ async function handleVehicles(action: string, payload: any) {
   if (action === "list") {
     const { data, error } = await supabase
       .from("vehicles")
-      .select("*, vehicle_stages(position, category)")
+      .select("*, vehicle_stages(position, category), vehicle_price_tiers(id, min_days, max_days, price_per_day)")
       .order("brand")
     if (error) throw error
     return data
@@ -123,12 +126,10 @@ async function handleCategories(action: string, payload: any) {
 // ---------- Стейджи ----------
 // Правило: у машины 0 стейджей (стоковая) либо непрерывно 2–4, начиная
 // с позиции 1. Позиция 1 — всегда "База". Позиции 2+ — любая из
-// Баланс/Скорость/Управление, повторы разрешены (например дважды
-// "Скорость"). Без базы не может быть позиции 2, без позиции 2 —
-// позиции 3, и т.д. — это и проверяем ниже перед записью.
+// Баланс/Скорость/Управление, повторы разрешены.
 function validateStages(stages: any[]) {
   if (!Array.isArray(stages)) throw new Error("stages должен быть массивом")
-  if (stages.length === 0) return // стоковая машина — всё ок
+  if (stages.length === 0) return
 
   if (stages.length < 2 || stages.length > 4) {
     throw new Error("У машины должно быть 0 стейджей (стоковая) либо от 2 до 4 подряд")
@@ -152,7 +153,6 @@ function validateStages(stages: any[]) {
 
 async function handleStages(action: string, payload: any) {
   if (action === "replaceForVehicle") {
-    // payload: { vehicleId, stages: [{ position, category }, ...] }
     const { vehicleId, stages } = payload
     validateStages(stages)
 
@@ -173,7 +173,71 @@ async function handleStages(action: string, payload: any) {
   throw new Error("Неизвестное действие для stages")
 }
 
+// ---------- Тарифы по датам ----------
+// Каждый тариф — диапазон суток аренды [min_days; max_days] и цена за
+// сутки в этом диапазоне. max_days = null значит "и больше". Тарифов
+// может быть 0 (тогда всегда действует price_day машины) или сколько
+// угодно — их порядок и непересечение не проверяются жёстко, это на
+// совести того, кто редактирует (админ видит их отсортированными по
+// min_days и может скорректировать).
+async function handlePriceTiers(action: string, payload: any) {
+  if (action === "listForVehicle") {
+    const { data, error } = await supabase
+      .from("vehicle_price_tiers")
+      .select("*")
+      .eq("vehicle_id", payload.vehicleId)
+      .order("min_days")
+    if (error) throw error
+    return data
+  }
+  if (action === "replaceForVehicle") {
+    const { vehicleId, tiers } = payload
+    if (!Array.isArray(tiers)) throw new Error("tiers должен быть массивом")
+
+    for (const t of tiers) {
+      if (!t.min_days || t.min_days < 1) throw new Error("Каждый тариф должен иметь «от, дней» >= 1")
+      if (t.max_days != null && t.max_days < t.min_days) throw new Error("«до, дней» не может быть меньше «от, дней»")
+      if (t.price_per_day == null || t.price_per_day < 0) throw new Error("Укажите цену за сутки для каждого тарифа")
+    }
+
+    const { error: delError } = await supabase.from("vehicle_price_tiers").delete().eq("vehicle_id", vehicleId)
+    if (delError) throw delError
+
+    if (tiers.length === 0) return []
+
+    const rows = tiers.map((t: any) => ({
+      vehicle_id: vehicleId,
+      min_days: t.min_days,
+      max_days: t.max_days ?? null,
+      price_per_day: t.price_per_day,
+    }))
+    const { data, error } = await supabase.from("vehicle_price_tiers").insert(rows).select()
+    if (error) throw error
+    return data
+  }
+  throw new Error("Неизвестное действие для priceTiers")
+}
+
 // ---------- Аренды ----------
+// После любого изменения статуса или удаления заявки пересчитываем
+// vehicles.is_rented машины: занята, если у неё осталась хоть одна
+// активная (status = 'active') заявка, иначе свободна. Так занятость
+// на публичных страницах всегда в синхроне с админкой, без ручного
+// переключателя, который было бы легко забыть выключить.
+async function recomputeVehicleAvailability(vehicleId: string | null) {
+  if (!vehicleId) return
+  const { data, error } = await supabase
+    .from("rentals")
+    .select("id")
+    .eq("vehicle_id", vehicleId)
+    .eq("status", "active")
+    .limit(1)
+  if (error) throw error
+  const isRented = !!(data && data.length > 0)
+  const { error: updError } = await supabase.from("vehicles").update({ is_rented: isRented }).eq("id", vehicleId)
+  if (updError) throw updError
+}
+
 async function handleRentals(action: string, payload: any) {
   if (action === "list") {
     const { data, error } = await supabase
@@ -187,11 +251,14 @@ async function handleRentals(action: string, payload: any) {
     const { id, status } = payload
     const { data, error } = await supabase.from("rentals").update({ status }).eq("id", id).select().single()
     if (error) throw error
+    await recomputeVehicleAvailability(data.vehicle_id)
     return data
   }
   if (action === "delete") {
+    const { data: existing } = await supabase.from("rentals").select("vehicle_id").eq("id", payload.id).maybeSingle()
     const { error } = await supabase.from("rentals").delete().eq("id", payload.id)
     if (error) throw error
+    if (existing) await recomputeVehicleAvailability(existing.vehicle_id)
     return { ok: true }
   }
   throw new Error("Неизвестное действие для rentals")

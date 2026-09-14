@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { callAdminApi } from '../../api/admin.js'
 import { formatMoney } from '../../utils/format.js'
+import { daysBetween } from '../../utils/pricing.js'
 import SkeletonTableRows from '../../components/SkeletonTableRows/SkeletonTableRows.jsx'
 
 const STATUS_LABELS = { active: 'Активна', completed: 'Завершена', cancelled: 'Отменена' }
-const COLUMNS = 9
+const COLUMNS = 10
 
 export default function RentalsAdmin() {
   const [rentals, setRentals] = useState([])
@@ -60,7 +61,8 @@ export default function RentalsAdmin() {
               <th>Игрок</th>
               <th>ВК</th>
               <th>Обращение</th>
-              <th>Период</th>
+              <th>Даты аренды</th>
+              <th>Дней</th>
               <th>Цена</th>
               <th>Статус</th>
               <th>Создана</th>
@@ -79,7 +81,10 @@ export default function RentalsAdmin() {
                     <a href={r.vk_link} target="_blank" rel="noreferrer">открыть</a>
                   </td>
                   <td>{r.contact_name}</td>
-                  <td>{r.period === 'week' ? 'Неделя' : 'Сутки'}</td>
+                  <td className="mono">
+                    {new Date(r.start_date).toLocaleDateString('ru-RU')} – {new Date(r.end_date).toLocaleDateString('ru-RU')}
+                  </td>
+                  <td className="mono">{daysBetween(r.start_date, r.end_date) || '—'}</td>
                   <td className="mono">{r.price ? formatMoney(r.price) : '—'}</td>
                   <td>
                     <select value={r.status} onChange={(e) => handleStatusChange(r.id, e.target.value)}>

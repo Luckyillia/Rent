@@ -41,6 +41,7 @@
   --radius-m: 12px;
   --radius-l: 20px;
   --container: 1180px;
+  --crumbs-block-height: 76px;
 }
 
 * {

@@ -1,16 +1,20 @@
 import { useEffect, useState } from 'react'
-import { useParams, useSearchParams, Navigate, Link } from 'react-router-dom'
+import { useParams, Navigate, Link } from 'react-router-dom'
 import Breadcrumbs from '../../components/Breadcrumbs/Breadcrumbs.jsx'
 import SkeletonBookingForm from '../../components/SkeletonBookingForm/SkeletonBookingForm.jsx'
 import { fetchVehicle } from '../../api/vehicles.js'
 import { fetchCategoryById } from '../../api/categories.js'
 import { submitRentalRequest } from '../../api/rentals.js'
 import { formatMoney } from '../../utils/format.js'
+import { daysBetween, pricePerDayFor, totalPriceFor } from '../../utils/pricing.js'
 import './BookingPage.css'
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10)
+}
 
 export default function BookingPage() {
   const { vehicleId } = useParams()
-  const [searchParams] = useSearchParams()
   const [vehicle, setVehicle] = useState(null)
   const [category, setCategory] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -19,7 +23,8 @@ export default function BookingPage() {
   const [vkLink, setVkLink] = useState('')
   const [gameNickname, setGameNickname] = useState('')
   const [contactName, setContactName] = useState('')
-  const [period, setPeriod] = useState(searchParams.get('period') === 'week' ? 'week' : 'day')
+  const [startDate, setStartDate] = useState(todayStr())
+  const [endDate, setEndDate] = useState(todayStr())
 
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
@@ -60,21 +65,55 @@ export default function BookingPage() {
   if (loading || !vehicle) {
     return (
       <section className="container booking-page">
-        <div className="booking-page__layout">
-          <SkeletonBookingForm />
+        <div className="booking-page__loading">
+          <div className="booking-page__layout">
+            <SkeletonBookingForm />
+          </div>
         </div>
       </section>
     )
   }
 
-  const price = period === 'day' ? vehicle.priceDay : vehicle.priceWeek
+  // Машину уже забронировали, пока мы грузили страницу, или она занята
+  // с самого начала — форму не показываем вовсе.
+  if (vehicle.isRented) {
+    return (
+      <section className="container booking-page">
+        <Breadcrumbs
+          items={[
+            { label: 'Главная', to: '/' },
+            { label: category?.label, to: `/category/${category?.id}` },
+            { label: `${vehicle.brand} ${vehicle.model}`, to: `/car/${vehicle.id}` },
+            { label: 'Заявка на аренду' },
+          ]}
+        />
+        <div className="booking-page__done">
+          <h1>Машина сейчас недоступна</h1>
+          <p>
+            «{vehicle.brand} {vehicle.model}» уже в аренде у другого игрока. Загляните
+            позже — как только машина освободится, бронь снова станет доступна.
+          </p>
+          <Link to={`/car/${vehicle.id}`} className="btn btn-outline">Назад к машине</Link>
+        </div>
+      </section>
+    )
+  }
+
+  const days = daysBetween(startDate, endDate)
+  const datesValid = days > 0
+  const pricePerDay = datesValid ? pricePerDayFor(days, vehicle.priceTiers, vehicle.priceDay) : vehicle.priceDay
+  const price = totalPriceFor(days, vehicle.priceTiers, vehicle.priceDay)
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (!datesValid) {
+      setError('Дата окончания не может быть раньше даты начала')
+      return
+    }
     setSubmitting(true)
     setError(null)
     try {
-      await submitRentalRequest({ vehicleId: vehicle.id, vkLink, gameNickname, contactName, period })
+      await submitRentalRequest({ vehicleId: vehicle.id, vkLink, gameNickname, contactName, startDate, endDate })
       setSubmitted(true)
     } catch (err) {
       setError(err.message)
@@ -147,23 +186,44 @@ export default function BookingPage() {
             />
           </label>
 
-          <div className="booking-form__field">
-            <span>На какой срок</span>
-            <div className="booking-form__period">
-              <button type="button" className={period === 'day' ? 'is-active' : ''} onClick={() => setPeriod('day')}>
-                Сутки
-              </button>
-              <button type="button" className={period === 'week' ? 'is-active' : ''} onClick={() => setPeriod('week')}>
-                Неделя
-              </button>
-            </div>
+          <div className="booking-form__dates">
+            <label className="booking-form__field">
+              С какой даты
+              <input
+                type="date"
+                required
+                min={todayStr()}
+                value={startDate}
+                onChange={(e) => {
+                  setStartDate(e.target.value)
+                  if (e.target.value > endDate) setEndDate(e.target.value)
+                }}
+              />
+            </label>
+            <label className="booking-form__field">
+              По какую дату
+              <input
+                type="date"
+                required
+                min={startDate}
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+            </label>
           </div>
 
-          <p className="booking-form__price mono">{formatMoney(price)}</p>
+          {datesValid ? (
+            <div className="booking-form__price-breakdown">
+              <span>{days} {days === 1 ? 'сутки' : 'суток'} × {formatMoney(pricePerDay)} / сутки</span>
+              <p className="booking-form__price mono">{formatMoney(price)}</p>
+            </div>
+          ) : (
+            <p className="booking-form__error">Выберите корректный диапазон дат</p>
+          )}
 
           {error && <p className="booking-form__error">{error}</p>}
 
-          <button type="submit" className="btn btn-primary" disabled={submitting}>
+          <button type="submit" className="btn btn-primary" disabled={submitting || !datesValid}>
             {submitting ? 'Отправляем…' : 'Отправить заявку'}
           </button>
         </form>

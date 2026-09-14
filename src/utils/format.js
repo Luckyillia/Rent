@@ -1,5 +1,5 @@
 export function formatMoney(value) {
-  return `$${new Intl.NumberFormat('ru-RU').format(value)}`
+  return `${new Intl.NumberFormat('ru-RU').format(value)} ₽`
 }
 
 export function seatsLabel(seats) {

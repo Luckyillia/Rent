@@ -1,24 +1,61 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, Navigate, Link } from 'react-router-dom'
 import Breadcrumbs from '../../components/Breadcrumbs/Breadcrumbs.jsx'
 import Gallery from '../../components/Gallery/Gallery.jsx'
 import StagesList from '../../components/StagesList/StagesList.jsx'
-import { getVehicle } from '../../data/vehicles.js'
-import { getCategory } from '../../data/categories.js'
+import { fetchVehicle } from '../../api/vehicles.js'
+import { fetchCategoryById } from '../../api/categories.js'
 import { formatMoney, seatsLabel } from '../../utils/format.js'
 import './VehiclePage.css'
 
 export default function VehiclePage() {
   const { vehicleId } = useParams()
-  const vehicle = getVehicle(vehicleId)
+  const [vehicle, setVehicle] = useState(null)
+  const [category, setCategory] = useState(null)
   const [period, setPeriod] = useState('day')
-  const [booked, setBooked] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
 
-  if (!vehicle) {
+  useEffect(() => {
+    let cancelled = false
+
+    async function load() {
+      try {
+        const v = await fetchVehicle(vehicleId)
+        if (!v) {
+          if (!cancelled) setNotFound(true)
+          return
+        }
+        const cat = await fetchCategoryById(v.category)
+        if (!cancelled) {
+          setVehicle(v)
+          setCategory(cat)
+        }
+      } catch (e) {
+        if (!cancelled) setNotFound(true)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [vehicleId])
+
+  if (notFound) {
     return <Navigate to="/" replace />
   }
 
-  const category = getCategory(vehicle.category)
+  if (loading || !vehicle) {
+    return (
+      <section className="container vehicle-page">
+        <p className="mono">Загрузка…</p>
+      </section>
+    )
+  }
+
   const price = period === 'day' ? vehicle.priceDay : vehicle.priceWeek
 
   return (
@@ -33,7 +70,7 @@ export default function VehiclePage() {
 
       <div className="vehicle-page__layout">
         <div className="vehicle-page__gallery">
-          <Gallery kind={category?.kind} color={category?.color} />
+          <Gallery kind={category?.kind} color={category?.color} images={vehicle.images} />
 
           <div className="vehicle-page__section">
             <h2>Оснащение</h2>
@@ -45,7 +82,7 @@ export default function VehiclePage() {
           </div>
 
           <div className="vehicle-page__section">
-            <h2>Стадии тюнинга</h2>
+            <h2>Установленные стейджи</h2>
             <StagesList stages={vehicle.stages} />
           </div>
         </div>
@@ -79,18 +116,9 @@ export default function VehiclePage() {
 
           <p className="vehicle-page__price mono">{formatMoney(price)}</p>
 
-          <button
-            type="button"
-            className="btn btn-primary vehicle-page__book"
-            onClick={() => setBooked(true)}
-          >
-            {booked ? 'Забронировано' : 'Забронировать'}
-          </button>
-          {booked && (
-            <p className="vehicle-page__book-note">
-              Заявка создана. Заберите технику в точке выдачи «{vehicle.location}» в игре.
-            </p>
-          )}
+          <Link to={`/book/${vehicle.id}?period=${period}`} className="btn btn-primary vehicle-page__book">
+            Забронировать
+          </Link>
 
           <dl className="vehicle-page__specs">
             <div>

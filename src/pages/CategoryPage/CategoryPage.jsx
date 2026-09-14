@@ -1,21 +1,53 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, Navigate } from 'react-router-dom'
 import Breadcrumbs from '../../components/Breadcrumbs/Breadcrumbs.jsx'
 import FilterPanel from '../../components/FilterPanel/FilterPanel.jsx'
 import VehicleGrid from '../../components/VehicleGrid/VehicleGrid.jsx'
 import EmptyState from '../../components/EmptyState/EmptyState.jsx'
 import VehicleIcon from '../../components/VehicleIcon/VehicleIcon.jsx'
-import { getCategory } from '../../data/categories.js'
-import { getVehiclesByCategory } from '../../data/vehicles.js'
+import { fetchCategoryById } from '../../api/categories.js'
+import { fetchVehiclesByCategory } from '../../api/vehicles.js'
 import { EMPTY_FILTERS, filterVehicles } from '../../utils/filterVehicles.js'
 import './CategoryPage.css'
 
 export default function CategoryPage() {
   const { categoryId } = useParams()
-  const category = getCategory(categoryId)
+  const [category, setCategory] = useState(null)
+  const [allVehicles, setAllVehicles] = useState([])
   const [filters, setFilters] = useState(EMPTY_FILTERS)
+  const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
 
-  const allVehicles = useMemo(() => getVehiclesByCategory(categoryId), [categoryId])
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setNotFound(false)
+    setFilters(EMPTY_FILTERS)
+
+    async function load() {
+      try {
+        const cat = await fetchCategoryById(categoryId)
+        if (!cat) {
+          if (!cancelled) setNotFound(true)
+          return
+        }
+        const vehicles = await fetchVehiclesByCategory(categoryId)
+        if (!cancelled) {
+          setCategory(cat)
+          setAllVehicles(vehicles)
+        }
+      } catch (e) {
+        if (!cancelled) setNotFound(true)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [categoryId])
 
   const priceBounds = useMemo(() => {
     if (allVehicles.length === 0) return { min: 0, max: 1000, step: 100 }
@@ -30,8 +62,16 @@ export default function CategoryPage() {
     [allVehicles, filters]
   )
 
-  if (!category) {
+  if (notFound) {
     return <Navigate to="/" replace />
+  }
+
+  if (loading || !category) {
+    return (
+      <section className="container category-page">
+        <p className="mono">Загрузка…</p>
+      </section>
+    )
   }
 
   return (

@@ -11,7 +11,11 @@ export default function VehicleCard({ vehicle }) {
     <Link to={`/car/${vehicle.id}`} className="v-card">
       <div className="v-card__art" style={{ '--card-color': category?.color }}>
         {vehicle.badge && <span className="v-card__badge">{vehicle.badge}</span>}
-        <VehicleIcon kind={category?.kind} color={category?.color} />
+        {vehicle.images?.length > 0 ? (
+          <img src={vehicle.images[0]} alt={`${vehicle.brand} ${vehicle.model}`} className="v-card__photo" />
+        ) : (
+          <VehicleIcon kind={category?.kind} color={category?.color} />
+        )}
       </div>
 
       <div className="v-card__body">

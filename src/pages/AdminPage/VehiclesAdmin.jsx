@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { callAdminApi } from '../../api/admin.js'
 import SkeletonTableRows from '../../components/SkeletonTableRows/SkeletonTableRows.jsx'
+import ImageUploader from '../../components/ImageUploader/ImageUploader.jsx'
 
 const EXTRA_CATEGORIES = ['Баланс', 'Скорость', 'Управление']
 const COLUMNS = 6
@@ -9,7 +10,7 @@ const EMPTY = {
   id: '', category_id: '', brand: '', model: '', class: '',
   price_day: '', price_week: '', seats: '', top_speed: '', accel: '',
   rating: '5', rents: '0', location: '', badge: '',
-  featuresText: '', imagesText: '',
+  featuresText: '', images: [],
   stageCount: '0', slot2: 'Баланс', slot3: 'Баланс', slot4: 'Баланс',
   priceTiers: [],
 }
@@ -62,7 +63,7 @@ export default function VehiclesAdmin() {
       location: v.location || '',
       badge: v.badge || '',
       featuresText: (v.features || []).join(', '),
-      imagesText: (v.images || []).join('\n'),
+      images: v.images || [],
       stageCount: String(stages.length),
       slot2: stages[1]?.category || 'Баланс',
       slot3: stages[2]?.category || 'Баланс',
@@ -139,7 +140,7 @@ export default function VehiclesAdmin() {
       location: form.location,
       badge: form.badge || null,
       features: form.featuresText.split(',').map((s) => s.trim()).filter(Boolean),
-      images: form.imagesText.split('\n').map((s) => s.trim()).filter(Boolean),
+      images: form.images,
     }
 
     try {
@@ -153,6 +154,15 @@ export default function VehiclesAdmin() {
       await callAdminApi('stages', 'replaceForVehicle', { vehicleId, stages: buildStagesPayload() })
       await callAdminApi('priceTiers', 'replaceForVehicle', { vehicleId, tiers: buildPriceTiersPayload() })
       resetForm()
+      load()
+    } catch (e) {
+      setError(e.message)
+    }
+  }
+
+  async function handleToggleRented(v) {
+    try {
+      await callAdminApi('vehicles', 'update', { id: v.id, changes: { is_rented: !v.is_rented } })
       load()
     } catch (e) {
       setError(e.message)
@@ -203,11 +213,9 @@ export default function VehiclesAdmin() {
           value={form.featuresText}
           onChange={(e) => setForm({ ...form, featuresText: e.target.value })}
         />
-        <textarea
-          placeholder="Ссылки на фото Cloudinary — каждая с новой строки, первая станет обложкой"
-          value={form.imagesText}
-          onChange={(e) => setForm({ ...form, imagesText: e.target.value })}
-        />
+        <div style={{ gridColumn: 'span 2' }}>
+          <ImageUploader images={form.images} onChange={(images) => setForm({ ...form, images })} />
+        </div>
 
         <fieldset className="admin-stages">
           <legend>Стейджи</legend>
@@ -317,7 +325,15 @@ export default function VehiclesAdmin() {
                 <td>{v.brand} {v.model}</td>
                 <td>{categories.find((c) => c.id === v.category_id)?.label || v.category_id}</td>
                 <td className="mono">{v.price_day}</td>
-                <td>{v.is_rented ? 'Да' : 'Нет'}</td>
+                <td>
+                  {v.is_rented ? (
+                    <button type="button" className="btn btn-outline" onClick={() => handleToggleRented(v)}>
+                      Освободить
+                    </button>
+                  ) : (
+                    'Нет'
+                  )}
+                </td>
                 <td>
                   {(v.vehicle_stages || []).length === 0
                     ? 'Стоковая'

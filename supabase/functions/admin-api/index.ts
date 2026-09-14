@@ -251,14 +251,14 @@ async function handleRentals(action: string, payload: any) {
     const { id, status } = payload
     const { data, error } = await supabase.from("rentals").update({ status }).eq("id", id).select().single()
     if (error) throw error
-    await recomputeVehicleAvailability(data.vehicle_id)
+    await recomputeVehicleAvailability(data.vehicle_id)   // ← вот тут
     return data
   }
   if (action === "delete") {
     const { data: existing } = await supabase.from("rentals").select("vehicle_id").eq("id", payload.id).maybeSingle()
     const { error } = await supabase.from("rentals").delete().eq("id", payload.id)
     if (error) throw error
-    if (existing) await recomputeVehicleAvailability(existing.vehicle_id)
+    if (existing) await recomputeVehicleAvailability(existing.vehicle_id)   // ← и тут
     return { ok: true }
   }
   throw new Error("Неизвестное действие для rentals")

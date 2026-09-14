@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { callAdminApi } from '../../api/admin.js'
+import SkeletonTableRows from '../../components/SkeletonTableRows/SkeletonTableRows.jsx'
 
 const EMPTY = { id: '', label: '', kind: 'car', color: '#8CA3C7', description: '' }
+const COLUMNS = 5
 
 export default function CategoriesAdmin() {
   const [categories, setCategories] = useState([])
@@ -109,21 +111,21 @@ export default function CategoriesAdmin() {
 
       {error && <p className="admin-error">{error}</p>}
 
-      {loading ? (
-        <p className="mono">Загрузка…</p>
-      ) : (
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Название</th>
-              <th>Тип</th>
-              <th>Цвет</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {categories.map((c) => (
+      <table className="admin-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Название</th>
+            <th>Тип</th>
+            <th>Цвет</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {loading ? (
+            <SkeletonTableRows columns={COLUMNS} />
+          ) : (
+            categories.map((c) => (
               <tr key={c.id}>
                 <td className="mono">{c.id}</td>
                 <td>{c.label}</td>
@@ -145,10 +147,10 @@ export default function CategoriesAdmin() {
                   <button type="button" className="btn btn-outline" onClick={() => handleDelete(c.id)}>Удалить</button>
                 </td>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+            ))
+          )}
+        </tbody>
+      </table>
     </div>
   )
 }

@@ -3,12 +3,15 @@ import { useParams, Navigate } from 'react-router-dom'
 import Breadcrumbs from '../../components/Breadcrumbs/Breadcrumbs.jsx'
 import FilterPanel from '../../components/FilterPanel/FilterPanel.jsx'
 import VehicleGrid from '../../components/VehicleGrid/VehicleGrid.jsx'
+import SkeletonVehicleCard from '../../components/SkeletonVehicleCard/SkeletonVehicleCard.jsx'
 import EmptyState from '../../components/EmptyState/EmptyState.jsx'
 import VehicleIcon from '../../components/VehicleIcon/VehicleIcon.jsx'
 import { fetchCategoryById } from '../../api/categories.js'
 import { fetchVehiclesByCategory } from '../../api/vehicles.js'
 import { EMPTY_FILTERS, filterVehicles } from '../../utils/filterVehicles.js'
 import './CategoryPage.css'
+
+const SKELETON_COUNT = 6
 
 export default function CategoryPage() {
   const { categoryId } = useParams()
@@ -69,7 +72,20 @@ export default function CategoryPage() {
   if (loading || !category) {
     return (
       <section className="container category-page">
-        <p className="mono">Загрузка…</p>
+        <div className="category-page__loading">
+          <div className="category-page__head">
+            <div className="skeleton-category-icon skeleton-shimmer" />
+            <div className="skeleton-category-text">
+              <span className="skeleton-category-title skeleton-shimmer" />
+              <span className="skeleton-category-desc skeleton-shimmer" />
+            </div>
+          </div>
+          <div className="v-grid">
+            {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+              <SkeletonVehicleCard key={i} />
+            ))}
+          </div>
+        </div>
       </section>
     )
   }

@@ -1,6 +1,12 @@
 .vehicle-page {
-  padding-top: 40px;
+  padding-top: 8px;
   padding-bottom: 100px;
+}
+
+/* См. CategoryPage.css — тот же принцип: компенсируем отсутствие
+   Breadcrumbs во время загрузки тем же отступом, что даёт margin-top крошек. */
+.vehicle-page__loading {
+  margin-top: 28px;
 }
 
 .vehicle-page__layout {

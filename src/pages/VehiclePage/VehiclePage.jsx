@@ -3,6 +3,7 @@ import { useParams, Navigate, Link } from 'react-router-dom'
 import Breadcrumbs from '../../components/Breadcrumbs/Breadcrumbs.jsx'
 import Gallery from '../../components/Gallery/Gallery.jsx'
 import StagesList from '../../components/StagesList/StagesList.jsx'
+import SkeletonVehiclePage from '../../components/SkeletonVehiclePage/SkeletonVehiclePage.jsx'
 import { fetchVehicle } from '../../api/vehicles.js'
 import { fetchCategoryById } from '../../api/categories.js'
 import { formatMoney, seatsLabel } from '../../utils/format.js'
@@ -51,7 +52,9 @@ export default function VehiclePage() {
   if (loading || !vehicle) {
     return (
       <section className="container vehicle-page">
-        <p className="mono">Загрузка…</p>
+        <div className="vehicle-page__loading">
+          <SkeletonVehiclePage />
+        </div>
       </section>
     )
   }

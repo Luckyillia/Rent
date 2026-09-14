@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
 import Logo from '../../components/Logo/Logo.jsx'
 import CategoryCard from '../../components/CategoryCard/CategoryCard.jsx'
+import SkeletonCard from '../../components/SkeletonCard/SkeletonCard.jsx'
 import { fetchCategories } from '../../api/categories.js'
 import { fetchVehicleCountsByCategory } from '../../api/vehicles.js'
 import './CategoriesPage.css'
+
+const SKELETON_COUNT = 6
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState([])
@@ -52,14 +55,15 @@ export default function CategoriesPage() {
       <section className="container categories-section">
         <h2 className="categories-section__title">Категории</h2>
 
-        {loading && <p className="mono">Загрузка…</p>}
         {errorMsg && <p className="mono">{errorMsg}</p>}
 
-        {!loading && !errorMsg && (
+        {!errorMsg && (
           <div className="categories-grid">
-            {categories.map((cat) => (
-              <CategoryCard key={cat.id} category={cat} count={counts[cat.id] || 0} />
-            ))}
+            {loading
+              ? Array.from({ length: SKELETON_COUNT }).map((_, i) => <SkeletonCard key={i} />)
+              : categories.map((cat) => (
+                  <CategoryCard key={cat.id} category={cat} count={counts[cat.id] || 0} />
+                ))}
           </div>
         )}
       </section>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useSearchParams, Navigate, Link } from 'react-router-dom'
 import Breadcrumbs from '../../components/Breadcrumbs/Breadcrumbs.jsx'
+import SkeletonBookingForm from '../../components/SkeletonBookingForm/SkeletonBookingForm.jsx'
 import { fetchVehicle } from '../../api/vehicles.js'
 import { fetchCategoryById } from '../../api/categories.js'
 import { submitRentalRequest } from '../../api/rentals.js'
@@ -59,7 +60,9 @@ export default function BookingPage() {
   if (loading || !vehicle) {
     return (
       <section className="container booking-page">
-        <p className="mono">Загрузка…</p>
+        <div className="booking-page__layout">
+          <SkeletonBookingForm />
+        </div>
       </section>
     )
   }

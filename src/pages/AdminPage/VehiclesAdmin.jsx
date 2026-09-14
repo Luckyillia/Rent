@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { callAdminApi } from '../../api/admin.js'
+import SkeletonTableRows from '../../components/SkeletonTableRows/SkeletonTableRows.jsx'
 
 const EXTRA_CATEGORIES = ['Баланс', 'Скорость', 'Управление']
+const COLUMNS = 5
 
 const EMPTY = {
   id: '', category_id: '', brand: '', model: '', class: '',
@@ -227,21 +229,21 @@ export default function VehiclesAdmin() {
 
       {error && <p className="admin-error">{error}</p>}
 
-      {loading ? (
-        <p className="mono">Загрузка…</p>
-      ) : (
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Машина</th>
-              <th>Категория</th>
-              <th>Цена/сутки</th>
-              <th>Стейджи</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {vehicles.map((v) => (
+      <table className="admin-table">
+        <thead>
+          <tr>
+            <th>Машина</th>
+            <th>Категория</th>
+            <th>Цена/сутки</th>
+            <th>Стейджи</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {loading ? (
+            <SkeletonTableRows columns={COLUMNS} />
+          ) : (
+            vehicles.map((v) => (
               <tr key={v.id}>
                 <td>{v.brand} {v.model}</td>
                 <td>{categories.find((c) => c.id === v.category_id)?.label || v.category_id}</td>
@@ -260,10 +262,10 @@ export default function VehiclesAdmin() {
                   <button type="button" className="btn btn-outline" onClick={() => handleDelete(v.id)}>Удалить</button>
                 </td>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+            ))
+          )}
+        </tbody>
+      </table>
     </div>
   )
 }

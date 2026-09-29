@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import VehicleIcon from '../VehicleIcon/VehicleIcon.jsx'
-import { formatMoney } from '../../utils/format.js'
+import { formatMoney, slotsLabel } from '../../utils/format.js'
 import { getCategory } from '../../data/categories.js'
 import './VehicleCard.css'
 
@@ -27,7 +27,7 @@ export default function VehicleCard({ vehicle }) {
 
         <ul className="v-card__specs mono">
           <li>{vehicle.topSpeed} км/ч</li>
-          <li>{vehicle.accel} с до 100</li>
+          {vehicle.trunkCapacity != null && <li>багажник: {slotsLabel(vehicle.trunkCapacity)}</li>}
         </ul>
 
         <div className="v-card__bottom">

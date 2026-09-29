@@ -26,7 +26,7 @@ function mapVehicle(row) {
     isRented: !!row.is_rented,
     seats: row.seats,
     topSpeed: row.top_speed,
-    accel: row.accel,
+    trunkCapacity: row.trunk_capacity,
     rating: row.rating,
     rents: row.rents,
     location: row.location,

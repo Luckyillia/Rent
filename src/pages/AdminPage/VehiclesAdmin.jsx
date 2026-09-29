@@ -8,7 +8,7 @@ const COLUMNS = 6
 
 const EMPTY = {
   id: '', category_id: '', brand: '', model: '', class: '',
-  price_day: '', price_week: '', deposit: '0', seats: '', top_speed: '', accel: '',
+    price_day: '', price_week: '', deposit: '0', seats: '', top_speed: '', trunk_capacity: '',
   rating: '5', rents: '0', location: '', badge: '',
   featuresText: '', images: [],
   stageCount: '0', slot2: 'Баланс', slot3: 'Баланс', slot4: 'Баланс',
@@ -58,7 +58,7 @@ export default function VehiclesAdmin() {
       deposit: v.deposit ?? '0',
       seats: v.seats ?? '',
       top_speed: v.top_speed ?? '',
-      accel: v.accel ?? '',
+      trunk_capacity: v.trunk_capacity ?? '',
       rating: v.rating ?? '5',
       rents: v.rents ?? '0',
       location: v.location || '',
@@ -136,7 +136,7 @@ export default function VehiclesAdmin() {
       deposit: form.deposit === '' ? 0 : Number(form.deposit),
       seats: form.seats === '' ? null : Number(form.seats),
       top_speed: form.top_speed === '' ? null : Number(form.top_speed),
-      accel: form.accel === '' ? null : Number(form.accel),
+      trunk_capacity: form.trunk_capacity === '' ? null : Number(form.trunk_capacity),
       rating: form.rating === '' ? null : Number(form.rating),
       rents: form.rents === '' ? 0 : Number(form.rents),
       location: form.location,
@@ -205,9 +205,9 @@ export default function VehiclesAdmin() {
         <input type="number" placeholder="Цена / сутки, ₽ (по умолчанию, если нет тарифов)" value={form.price_day} onChange={(e) => setForm({ ...form, price_day: e.target.value })} required />
         <input type="number" placeholder="Цена / неделя, ₽ (устарело, необязательно)" value={form.price_week} onChange={(e) => setForm({ ...form, price_week: e.target.value })} />
         <input type="number" min="0" placeholder="Залог, ₽ (0 — без залога)" value={form.deposit} onChange={(e) => setForm({ ...form, deposit: e.target.value })} />
-        <input type="number" placeholder="Мест" value={form.seats} onChange={(e) => setForm({ ...form, seats: e.target.value })} />
+        <input type="number" placeholder="Мест в салоне" value={form.seats} onChange={(e) => setForm({ ...form, seats: e.target.value })} />
         <input type="number" placeholder="Макс. скорость, км/ч" value={form.top_speed} onChange={(e) => setForm({ ...form, top_speed: e.target.value })} />
-        <input type="number" step="0.1" placeholder="Разгон до 100, с" value={form.accel} onChange={(e) => setForm({ ...form, accel: e.target.value })} />
+<input type="number" min="0" placeholder="Слотов под вещи (напр. 5 или 10)" value={form.trunk_capacity} onChange={(e) => setForm({ ...form, trunk_capacity: e.target.value })} />
         <input type="number" step="0.1" placeholder="Рейтинг" value={form.rating} onChange={(e) => setForm({ ...form, rating: e.target.value })} />
         <input placeholder="Точка выдачи" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
         <input placeholder="Бейдж (необязательно)" value={form.badge} onChange={(e) => setForm({ ...form, badge: e.target.value })} />

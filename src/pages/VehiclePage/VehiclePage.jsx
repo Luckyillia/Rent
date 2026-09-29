@@ -7,7 +7,7 @@ import PriceTiers from '../../components/PriceTiers/PriceTiers.jsx'
 import SkeletonVehiclePage from '../../components/SkeletonVehiclePage/SkeletonVehiclePage.jsx'
 import { fetchVehicle } from '../../api/vehicles.js'
 import { fetchCategoryById } from '../../api/categories.js'
-import { formatMoney, seatsLabel } from '../../utils/format.js'
+import { formatMoney, seatsLabel, slotsLabel } from '../../utils/format.js'
 import './VehiclePage.css'
 
 export default function VehiclePage() {
@@ -138,12 +138,12 @@ export default function VehiclePage() {
               <dd className="mono">{vehicle.topSpeed} км/ч</dd>
             </div>
             <div>
-              <dt>Разгон до 100</dt>
-              <dd className="mono">{vehicle.accel} с</dd>
+              <dt>Мест в салоне</dt>
+              <dd className="mono">{vehicle.seats != null ? seatsLabel(vehicle.seats) : '—'}</dd>
             </div>
             <div>
-              <dt>Вместимость</dt>
-              <dd className="mono">{seatsLabel(vehicle.seats)}</dd>
+              <dt>Слоты под вещи</dt>
+              <dd className="mono">{vehicle.trunkCapacity != null ? slotsLabel(vehicle.trunkCapacity) : '—'}</dd>
             </div>
             <div>
               <dt>Точка выдачи</dt>

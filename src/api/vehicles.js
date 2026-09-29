@@ -21,6 +21,7 @@ function mapVehicle(row) {
     class: row.class,
     priceDay: row.price_day,
     priceWeek: row.price_week,
+    deposit: row.deposit ?? 0,
     priceTiers,
     isRented: !!row.is_rented,
     seats: row.seats,

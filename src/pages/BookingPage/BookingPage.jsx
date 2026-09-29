@@ -214,11 +214,17 @@ export default function BookingPage() {
 
           {datesValid ? (
             <div className="booking-form__price-breakdown">
-              <span>{days} {days === 1 ? 'сутки' : 'суток'} × {formatMoney(pricePerDay)} / сутки</span>
-              <p className="booking-form__price mono">{formatMoney(price)}</p>
+              ...
             </div>
           ) : (
             <p className="booking-form__error">Выберите корректный диапазон дат</p>
+          )}
+
+          {vehicle.deposit > 0 && (
+            <p className="booking-form__deposit">
+              + залог <span className="mono">{formatMoney(vehicle.deposit)}</span> — возвращается,
+              если машина возвращена целой; при повреждении остаётся у владельца в счёт компенсации.
+            </p>
           )}
 
           {error && <p className="booking-form__error">{error}</p>}

@@ -162,3 +162,19 @@
     position: static;
   }
 }
+
+
+.vehicle-page__deposit {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 14px;
+  color: var(--text);
+  margin-top: -8px;
+  margin-bottom: 18px;
+}
+
+.vehicle-page__deposit-note {
+  font-size: 12px;
+  color: var(--text-muted);
+}

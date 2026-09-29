@@ -108,6 +108,15 @@ export default function VehiclePage() {
             <span className="vehicle-page__price-unit"> / сутки</span>
           </p>
 
+          {vehicle.deposit > 0 && (
+            <p className="vehicle-page__deposit">
+              Залог: <span className="mono">{formatMoney(vehicle.deposit)}</span>
+              <span className="vehicle-page__deposit-note">
+                возвращается, если машина возвращена целой
+              </span>
+            </p>
+          )}
+
           {vehicle.isRented ? (
             <>
               <button type="button" className="btn btn-primary vehicle-page__book is-disabled" disabled>

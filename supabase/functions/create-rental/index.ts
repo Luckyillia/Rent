@@ -21,6 +21,40 @@ const corsHeaders = {
 const RATE_LIMIT_MINUTES = 10
 const MS_IN_DAY = 24 * 60 * 60 * 1000
 
+const TG_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN")
+const TG_CHAT_ID = Deno.env.get("TELEGRAM_CHAT_ID")
+
+// Данные приходят от посетителей сайта, поэтому экранируем HTML,
+// иначе в сообщении можно подсунуть чужую разметку.
+function esc(s: string) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+}
+
+function fmtDate(d: Date) {
+  const [y, m, day] = d.toISOString().slice(0, 10).split("-")
+  return `${day}.${m}.${y}`
+}
+
+// Ошибка Telegram не должна ломать бронь: заявка уже сохранена.
+async function notifyTelegram(text: string) {
+  if (!TG_TOKEN || !TG_CHAT_ID) return
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: TG_CHAT_ID,
+        text,
+        parse_mode: "HTML",
+        disable_web_page_preview: true,
+      }),
+    })
+    if (!res.ok) console.error("Telegram error:", res.status, await res.text())
+  } catch (e) {
+    console.error("Telegram fetch failed:", e)
+  }
+}
+
 function getClientIp(req: Request): string {
   const fwd = req.headers.get("x-forwarded-for")
   if (fwd) return fwd.split(",")[0].trim()
@@ -88,10 +122,10 @@ serve(async (req) => {
 
     // --- Машина не должна быть уже занята активной арендой ---
     const { data: vehicle, error: vehicleError } = await supabase
-      .from("vehicles")
-      .select("price_day, is_rented")
-      .eq("id", vehicleId)
-      .maybeSingle()
+    .from("vehicles")
+    .select("brand, model, class, location, deposit, price_day, is_rented, categories(label)")
+    .eq("id", vehicleId)
+    .maybeSingle()
 
     if (vehicleError) throw vehicleError
     if (!vehicle) return json({ error: "Машина не найдена" }, 404)
@@ -135,7 +169,39 @@ serve(async (req) => {
       .update({ is_rented: true })
       .eq("id", vehicleId)
     if (updateError) throw updateError
+    const rub = (n: number) => `${n.toLocaleString("ru-RU")} ₽`
+    const deposit = Number(vehicle.deposit ?? 0)
+    const safeVk = /^https?:\/\//i.test(vkLink.trim()) ? vkLink.trim() : ""
+    const usedTier = (tiers || []).some(
+      (t: any) => days >= t.min_days && (t.max_days == null || days <= t.max_days)
+    )
+    const siteUrl = Deno.env.get("SITE_URL") // необязательно, напр. https://your-site.ru
 
+    await notifyTelegram(
+      [
+        "🚗 <b>Новая заявка на аренду</b>",
+        `<i>№ ${esc(String(data.id).slice(0, 8))}</i>`,
+        "",
+        "<b>🚘 Машина</b>",
+        `${esc(`${vehicle.brand} ${vehicle.model}`)}${vehicle.class ? ` · ${esc(vehicle.class)}` : ""}`,
+        `Категория: ${esc(vehicle.categories?.label ?? "—")}`,
+        `Точка выдачи: ${esc(vehicle.location ?? "—")}`,
+        "",
+        "<b>📅 Аренда</b>",
+        `${fmtDate(start)} – ${fmtDate(end)} (${days} сут.)`,
+        `Тариф: ${rub(pricePerDay)} / сутки${usedTier ? " (по сроку аренды)" : " (базовый)"}`,
+        `Итого: <b>${rub(price)}</b>`,
+        deposit > 0 ? `Залог: ${rub(deposit)} (вместе: ${rub(price + deposit)})` : "Залог: нет",
+        "",
+        "<b>👤 Клиент</b>",
+        `Ник: ${esc(gameNickname.trim())}`,
+        `Обращение: ${esc(contactName.trim())}`,
+        safeVk ? `ВК: <a href="${esc(safeVk)}">${esc(safeVk)}</a>` : `ВК: ${esc(vkLink.trim())}`,
+        "",
+        `🕒 ${new Date().toLocaleString("ru-RU", { timeZone: "Europe/Moscow" })} (МСК)`,
+        siteUrl ? `⚙️ <a href="${esc(siteUrl)}/admin">Открыть админку</a>` : "",
+      ].filter((l) => l !== "").join("\n")
+    )
     return json({ ok: true, rental: data })
   } catch (e) {
     return json({ error: String(e) }, 500)

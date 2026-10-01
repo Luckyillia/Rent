@@ -10,7 +10,15 @@ import { daysBetween, pricePerDayFor, totalPriceFor } from '../../utils/pricing.
 import './BookingPage.css'
 
 function todayStr() {
-  return new Date().toISOString().slice(0, 10)
+  const d = new Date()
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+function daysWord(n) {
+  const m10 = n % 10, m100 = n % 100
+  if (m10 === 1 && m100 !== 11) return 'сутки'
+  return 'суток'
 }
 
 export default function BookingPage() {
@@ -214,7 +222,10 @@ export default function BookingPage() {
 
           {datesValid ? (
             <div className="booking-form__price-breakdown">
-              ...
+              <span>
+                {days} {daysWord(days)} × <span className="mono">{formatMoney(pricePerDay)}</span>
+              </span>
+              <p className="booking-form__price mono">{formatMoney(price)}</p>
             </div>
           ) : (
             <p className="booking-form__error">Выберите корректный диапазон дат</p>
